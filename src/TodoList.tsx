@@ -1,108 +1,91 @@
 import React, { useState, useEffect } from "react";
-import Todo from "./Todo";
-// import { todosRef } from "./firebase";
-import {
-  TopAppBar,
-  TopAppBarRow,
-  TopAppBarSection,
-  TopAppBarNavigationIcon,
-  TopAppBarActionItem,
-  TopAppBarTitle,
-  TopAppBarFixedAdjust,
-  SimpleTopAppBar
-} from "@rmwc/top-app-bar";
-// import '@rmwc/top-app-bar/styles';
-// import '@rmwc/icon/styles';
-// import '@rmwc/icon/icon.css';
-import '@rmwc/top-app-bar/styles';
-// import '@rmwc/icon/styles';
-// import '@rmwc/icon/icon.css';
-import '@rmwc/data-table/styles';
+import { db } from "./firebase";
 import { DataTable, DataTableContent, DataTableHead, DataTableHeadCell, DataTableRow, DataTableBody, DataTableCell } from "@rmwc/data-table";
-// import "@material/top-app-bar/dist/mdc.top-app-bar.css";
+import { Checkbox } from "@rmwc/checkbox";
+import { Button } from "@rmwc/button";
+import '@rmwc/checkbox/styles';
+import '@material/button/dist/mdc.button.css';
+import '@rmwc/data-table/styles';
 
 
-function TodoList() {
-  const [todos, setTodos] = useState<any>([]);
+function TodoList(props: any) {
+  const [todos, setTodos] = useState<Array<any>>([]);
+  const [checked, setChecked] = useState<any>({});
+
   useEffect(() => {
-    // todosRef.on('value', (snapshot) => {
-    //   let items = snapshot.val();
-    //   let newState = [];
-    //   for (let item in items) {
-    //     newState.push({
-    //       id: item,
-    //       task: items[item].task,
-    //       done: items[item].done
-    //     });
-    //   }
-    //   setTodos(newState)
-    // });
+    if (props?.currentUser) {
+      getTodo();
+    }
   }, [])
-  const [checked, setChecked] = React.useState({});
-  const sampleRows = new Array(5).fill(undefined);
-  return (
-    <div>
 
-      <SimpleTopAppBar
-        title="test"
-        navigationIcon
-        onNav={() => console.log('Navigate')}
-        actionItems={[
-          {
-            icon: 'logout',
-            onClick: () => console.log('Do Something')
-          }
-        ]}
-      />
-      <TopAppBarFixedAdjust />
-      <DataTable>
-        <DataTableContent>
-          <DataTableHead>
-            <DataTableRow>
-              <DataTableHeadCell hasFormControl>
-                {/* <Checkbox /> */}
-              </DataTableHeadCell>
-              <DataTableHeadCell>Label</DataTableHeadCell>
-              <DataTableHeadCell>Header</DataTableHeadCell>
-              <DataTableHeadCell>Header</DataTableHeadCell>
-              <DataTableHeadCell>Toggle</DataTableHeadCell>
-            </DataTableRow>
-          </DataTableHead>
-          <DataTableBody>
-            {sampleRows.map((v, i) => (
-              <DataTableRow key={i} >
-                <DataTableCell hasFormControl>
-                  {/* <Checkbox
-                  checked={checked[i]}
-                  onChange={evt => {
-                    checked[i] = evt.currentTarget.checked;
-                    setChecked({ ...checked });
-                  }}
-                /> */}
-                </DataTableCell>
-                <DataTableCell>Label</DataTableCell>
-                <DataTableCell>
-                  {/* <Select
-                  placeholder="--Select--"
-                  options={['Cookies', 'Pizza', 'Icecream']}
-                /> */}
-                </DataTableCell>
-                <DataTableCell>R{i} C3</DataTableCell>
-                <DataTableCell>
-                  {/* <Switch /> */}
-                </DataTableCell>
+  function getTodo() {
+    db.collection("todo").where("owner", "==", props?.currentUser?.uid).orderBy("createdAt", "asc").onSnapshot(function (querySnapshot) {
+      let newState: { id: any; title: any; isComplete: any; }[] = [];
+      querySnapshot.docs.map((doc) => {
+        let data = doc.data();
+        newState.push({
+          id: doc.id,
+          title: data.title,
+          isComplete: data.isComplete
+        })
+      })
+      setTodos(newState);
+    })
+  }
+
+  function updateTodo(e: any, v: any) {
+    console.log(e, v)
+    db.collection("todo").doc(v?.id).update({
+      isComplete: !v?.isComplete
+    })
+  }
+
+  function deleteTodo(v: any) {
+    console.log(v)
+    db.collection("todo").doc(v?.id).delete();
+  }
+
+  return (
+    <>
+      {todos && todos?.length > 0 && (
+        <DataTable style={{ width: '100%' }}>
+          <DataTableContent>
+            <DataTableHead>
+              <DataTableRow>
+                <DataTableHeadCell hasFormControl>
+                </DataTableHeadCell>
+                <DataTableHeadCell>Title</DataTableHeadCell>
+                <DataTableHeadCell>Status</DataTableHeadCell>
+                <DataTableHeadCell>Delete</DataTableHeadCell>
               </DataTableRow>
-            ))}
-          </DataTableBody>
-        </DataTableContent>
-      </DataTable>
-      {todos.map((todo: any, i: number) => (
-        <React.Fragment key={todo.id}>
-          <Todo todo={todo} />
-          {i < todos.length - 1}
-        </React.Fragment>
-      ))}
-    </div>
+            </DataTableHead>
+            <DataTableBody>
+              {todos.map((v, i) => (
+                <DataTableRow key={i} >
+                  <DataTableCell hasFormControl>
+                    <Checkbox
+                      checked={checked[i]}
+                      onChange={evt => {
+                        updateTodo(evt, v);
+                        checked[i] = evt.currentTarget.checked;
+                        setChecked({ ...checked });
+                      }}
+                    />
+                  </DataTableCell>
+                  <DataTableCell>{v?.title}</DataTableCell>
+                  <DataTableCell>
+                    <DataTableCell>{v?.isComplete === true ? "Completed" : "Incomplete"}</DataTableCell>
+                  </DataTableCell>
+                  <DataTableCell>
+                    <Button onClick={() => deleteTodo(v)} label="Delete" raised />
+                  </DataTableCell>
+                </DataTableRow>
+              ))}
+            </DataTableBody>
+          </DataTableContent>
+        </DataTable>
+      )}
+    </>
   );
 }
 export default TodoList;
